@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json" 
+	xmlns:wd-hr="http://www.mulesoft.org/schema/mule/wd-hr"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" 
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/wd-hr http://www.mulesoft.org/schema/mule/wd-hr/current/mule-wd-hr.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+    <flow name="endpointsFlow" processingStrategy="synchronous">
+        <http:listener config-ref="HTTP" path="/migrateworkers" doc:name="HTTP"/>
+        <flow-ref name="mainFlow" doc:name="Flow Reference"/>
+        <set-payload value="&lt;h1&gt;Batch Process initiated&lt;/h1&gt;&lt;b&gt;ID:&lt;/b&gt;#[payload.getId()]&lt;br/&gt;&lt;b&gt;Records to Be Processed: &lt;/b&gt;#[payload.getRecordCount()]&lt;br/&gt; &lt;b&gt;Start execution on: &lt;/b&gt;#[new java.util.Date()]" doc:name="Set Batch Status response Payload"/>
+        <exception-strategy ref="defaultChoiceExceptionStrategy" doc:name="Reference Exception Strategy"/>
+    </flow>
+</mule>

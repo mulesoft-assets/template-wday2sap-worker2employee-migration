@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp"
+	xmlns:sap="http://www.mulesoft.org/schema/mule/sap" 
+	xmlns:wd-hr="http://www.mulesoft.org/schema/mule/wd-hr" 
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" 
+	xmlns:core="http://www.mulesoft.org/schema/mule/core"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json" 
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
+http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/current/mule-sap.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/wd-hr http://www.mulesoft.org/schema/mule/wd-hr/current/mule-wd-hr.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+	<data-mapper:config name="Map_To_XML1" transformationGraphPath="map_to_xml1.grf" doc:name="Map_To_XML"/>
+    <data-mapper:config name="XML_To_Map_1" transformationGraphPath="xml_to_map_1.grf" doc:name="XML_To_Map"/>
+    <data-mapper:config name="Pojo_To_Map" transformationGraphPath="pojo_to_map.grf" doc:name="Pojo_To_Map"/>
+    <data-mapper:config name="XML_To_Map" transformationGraphPath="xml_to_map.grf" doc:name="XML_To_Map"/>
+    <data-mapper:config name="Map_To_XML_1" transformationGraphPath="map_to_xml_1.grf" doc:name="Map_To_XML_1"/>
+    <flow name="mainFlow" processingStrategy="synchronous">
+        <batch:execute name="migrateWorkersBatch" doc:name="execute migrateWorkersBatch"/>
+        <exception-strategy ref="defaultChoiceExceptionStrategy" doc:name="Reference Exception Strategy"/>
+    </flow>
+    <batch:job name="migrateWorkersBatch">
+        <batch:threading-profile poolExhaustedAction="WAIT"/>
+        <batch:input>
+            <wd-hr:get-workers config-ref="Workday_Human_Resource" workersRequest-ref="#[org.mule.templates.WorkersRequest.create(${migration.startDate})]" doc:name="getWorkers from Workday Human Resource"/>
+            <set-payload value="#[payload.responseData == null ? null : payload.responseData.worker]" doc:name="set to Worker collection"/>
+            <custom-filter class="org.mule.templates.WorkersDeduplicationFilter" doc:name="Filter duplicate workers"/>
+        </batch:input>
+        <batch:process-records>
+            <batch:step name="GetSAPEmployeeIfExists">
+                <enricher source="#[payload]" target="#[recordVars['userInSAP']]" doc:name="store in recordVars['userInSAP']">
+                    <processor-chain doc:name="Processor Chain">
+                        <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_GETDATA" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="Query for Employee">
+                            <sap:definition><![CDATA[<BAPI_EMPLOYEE_GETDATA>
+  	<import>	
+		<USERID>#["*" + payload.getWorkerData().getPersonalData().getContactData().getEmailAddressData().get(0).getEmailAddress().toUpperCase() + "*"]</USERID> 		
+	</import>
+</BAPI_EMPLOYEE_GETDATA>]]></sap:definition>
+
+                        </sap:outbound-endpoint>
+                        <data-mapper:transform config-ref="XML_To_Map" doc:name="XML To Map"/>
+                    </processor-chain>
+                </enricher>
+            </batch:step>
+            <batch:step name="WorkdayWorkerToMap">
+                <data-mapper:transform config-ref="Pojo_To_Map" doc:name="Pojo To Map">
+                    <data-mapper:input-arguments>
+                        <data-mapper:input-argument key="defaultDOB">${sap.hire.default.dob}</data-mapper:input-argument>
+                    </data-mapper:input-arguments>
+                </data-mapper:transform>
+            </batch:step>
+            <batch:step name="UpsertSAPEmployee">
+                <flow-ref name="upsertSAPEmployeeSubflow" doc:name="call upsertSAPEmployeeSubflow"/>
+            </batch:step>
+        </batch:process-records>
+        <batch:on-complete>
+            <scatter-gather doc:name="All">
+                <processor-chain>
+                    <json:object-to-json-transformer doc:name="transform BatchJobInstance to JSON"/>
+                    <logger message="Migration process has finished: #[payload]" level="INFO" doc:name="log 'Migration process has finished'"/>
+                </processor-chain>
+                <processor-chain>
+                    <parse-template location="./src/main/resources/email/body.html" doc:name="Parse Template"/>
+                    <smtp:outbound-endpoint host="${smtp.host}" port="${smtp.port}" user="${smtp.user}" password="${smtp.password}" connector-ref="SMTP" to="${mail.to}" from="${mail.from}" subject="${mail.subject}" responseTimeout="10000" mimeType="text/html" doc:name="send e-mail"/>
+                </processor-chain>
+            </scatter-gather>
+        </batch:on-complete>
+    </batch:job>
+    <sub-flow name="upsertSAPEmployeeSubflow">
+        <choice doc:name="Choice">
+            <when expression="#[recordVars['userInSAP'] instanceof NullPayload]">
+                <logger message="inserting SAP employee...#[payload]" level="INFO" doc:name="Logger"/>
+                <enricher source="#[payload['EmployeeNumber']]" target="#[flowVars['EmployeeNumber']]" doc:name="store in '#[flowVars['EmployeeNumber']]'">
+                    <processor-chain doc:name="Processor Chain">
+                        <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="ZMULE_NUMBER_GET_NEXT" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="get next Employee Number">
+                            <sap:definition><![CDATA[<ZMULE_NUMBER_GET_NEXT>
+  	<import>	
+		<NR_RANGE_NR>03</NR_RANGE_NR>
+		<OBJECT>RP_PREL</OBJECT>      
+	</import>
+</ZMULE_NUMBER_GET_NEXT>]]></sap:definition>
+
+                        </sap:outbound-endpoint>
+                        <data-mapper:transform config-ref="XML_To_Map_1" doc:name="XML To Map"/>
+                        <logger message="new employee number: #[payload]" level="INFO" doc:name="Log new employee number"/>
+                    </processor-chain>
+                </enricher>
+                <expression-component doc:name="Set EmployeeNumber"><![CDATA[payload.put("EmployeeNumber", flowVars['EmployeeNumber']);
+]]></expression-component>
+                <flow-ref name="createSapEmployeeSubflow" doc:name="call createSapEmployeeSubflow"/>
+            </when>
+            <otherwise>
+                <logger message="updating SAP employee #[recordVars['userInSAP']['id']]...#[payload]" level="INFO" doc:name="Logger"/>
+                <expression-component doc:name="Set EmployeeNumber"><![CDATA[payload.put("id", recordVars['userInSAP']['id']);]]></expression-component>
+                <flow-ref name="updateSapEmployeeSubflow" doc:name="call updateSapEmployeeSubflow"/>
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    
+    <sub-flow name="createSapEmployeeSubflow" >
+        <data-mapper:transform config-ref="Map_To_XML1" doc:name="Map To XML">
+            <data-mapper:input-arguments>
+                <data-mapper:input-argument key="sap_hire_org_COMP_CODE">${sap.hire.org.COMP_CODE}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_PERS_AREA">${sap.hire.org.PERS_AREA}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_EMPLOYEE_GROUP">${sap.hire.org.EMPLOYEE_GROUP}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_EMPLOYEE_SUBGROUP">${sap.hire.org.EMPLOYEE_SUBGROUP}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_PERSONNEL_SUBAREA">${sap.hire.org.PERSONNEL_SUBAREA}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_LEGAL_PERSON">${sap.hire.org.LEGAL_PERSON}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_PAYROLL_AREA">${sap.hire.org.PAYROLL_AREA}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_COSTCENTER">${sap.hire.org.COSTCENTER}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_ORG_UNIT">${sap.hire.org.ORG_UNIT}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_POSITION">${sap.hire.org.POSITION}</data-mapper:input-argument>
+				<data-mapper:input-argument key="sap_hire_org_JOB">${sap.hire.org.JOB}</data-mapper:input-argument>				
+				<data-mapper:input-argument key="currentDate">#[new java.util.Date()]</data-mapper:input-argument>                
+            </data-mapper:input-arguments>
+        </data-mapper:transform>
+        <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" 
+        functionName="BAPI_HRMASTER_SAVE_REPL_MULT" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="Create Employee" 
+        bapiTransaction="true" evaluateFunctionResponse="true"/>
+   
+    </sub-flow>
+    
+    <sub-flow name="updateSapEmployeeSubflow" >
+        <set-variable variableName="worker" value="#[payload]" doc:name="Store worker"/>
+        <transactional action="ALWAYS_BEGIN" doc:name="Transactional">
+            <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_ENQUEUE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Lock Employee" >
+                <sap:transaction action="ALWAYS_JOIN"/>
+                <sap:definition><![CDATA[<BAPI_EMPLOYEE_ENQUEUE>
+  <import>
+    <NUMBER>#[payload.id]</NUMBER>
+  </import>
+</BAPI_EMPLOYEE_ENQUEUE>]]></sap:definition>
+
+
+
+            </sap:outbound-endpoint>
+            <set-payload value="#[flowVars['worker']]" doc:name="Set Payload"/>
+            <data-mapper:transform config-ref="Map_To_XML_1" doc:name="Map To XML">
+                <data-mapper:input-arguments>
+                    <data-mapper:input-argument key="to">#[recordVars['userInSAP']['to']]</data-mapper:input-argument>
+                    <data-mapper:input-argument key="from">#[recordVars['userInSAP']['from']]</data-mapper:input-argument>
+                    <data-mapper:input-argument key="subtype">#[recordVars['userInSAP']['subtype']]</data-mapper:input-argument>
+                    <data-mapper:input-argument key="objectid">#[recordVars['userInSAP']['objectid']]</data-mapper:input-argument>
+                    <data-mapper:input-argument key="idnumber">#[recordVars['userInSAP']['idnumber']]</data-mapper:input-argument>
+                </data-mapper:input-arguments>
+            </data-mapper:transform>
+            <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_PERSDATA_CHANGE" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="Update Employee" bapiTransaction="true" >
+                <sap:transaction action="ALWAYS_JOIN"/>
+            </sap:outbound-endpoint>
+
+            <set-payload value="#[flowVars['worker']]" doc:name="Set Payload"/>
+            <sap:outbound-endpoint connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_DEQUEUE" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="Unlock Employee" bapiTransaction="true" exchange-pattern="request-response">
+                <sap:transaction action="ALWAYS_JOIN"/>
+                <sap:definition><![CDATA[<BAPI_EMPLOYEE_DEQUEUE>
+  <import>
+    <NUMBER>#[payload.id]</NUMBER>
+  </import>
+</BAPI_EMPLOYEE_DEQUEUE>]]></sap:definition>
+
+
+
+            </sap:outbound-endpoint>
+        </transactional>
+
+    </sub-flow>
+</mule>
