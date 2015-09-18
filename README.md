@@ -69,6 +69,10 @@ There are no particular considerations for this Anypoint Template regarding Sap 
 There are no particular considerations for this Anypoint Template regarding Workday as data origin.
 
 
+
+
+
+
 # Run it! <a name="runit"/>
 Simple steps to get Workday to SAP Worker to Employee Migration running.
 
@@ -123,7 +127,7 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 ### Common configuration
 
 + http.port `9090`
-+ migration.startDate `2015-02-26T14:20:00.000+0200`
++ migration.startDate `2015-09-18T12:00:00.000Z`
 
 #### Workday Connector configuration
 + wday.user `admin@workday`
@@ -152,7 +156,7 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 + sap.hire.org.ORG_UNIT `50000590`
 + sap.hire.org.POSITION `50000046`
 + sap.hire.org.JOB `50052752`
-+ sap.hire.default.dob `01.01.1980`
++ sap.hire.default.dob `1980-01-01`
 
 ### SMTP Services configuration
 + smtp.host `smtp.gmail.com`

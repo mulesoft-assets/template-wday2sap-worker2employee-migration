@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp"
+<mule version="EE-3.7.1"
+	xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp"
 	xmlns:http="http://www.mulesoft.org/schema/mule/http"
 	xmlns:sap="http://www.mulesoft.org/schema/mule/sap" 
 	xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:wd-hr="http://www.mulesoft.org/schema/mule/wd-hr" 
 	xmlns="http://www.mulesoft.org/schema/mule/core"
 	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.6.0"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
