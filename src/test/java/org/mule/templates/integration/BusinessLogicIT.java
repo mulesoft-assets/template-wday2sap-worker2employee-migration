@@ -9,10 +9,11 @@ package org.mule.templates.integration;
 
 import java.io.FileInputStream;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TimeZone;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -61,10 +62,8 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 	@BeforeClass
 	public static void beforeTestClass() {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-		Calendar cal = Calendar.getInstance();
-		cal.add(Calendar.HOUR_OF_DAY, -2);
-		
-		System.setProperty("migration.startDate", sdf.format(cal.getTime()));
+		sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+		System.setProperty("migration.startDate", sdf.format(new Date()));
 	}
 
 	/**
