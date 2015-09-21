@@ -39,7 +39,7 @@ These dependencies are private for Mulesoft and therefore your application will 
 ### Common configuration
 
 + http.port `9090`
-+ migration.startDate `2015-02-26T14:20:00.000+0200`
++ migration.startDate `2015-09-18T12:00:00.000Z`
 
 #### Workday Connector configuration
 + wday.user `admin@workday`
@@ -68,7 +68,7 @@ These dependencies are private for Mulesoft and therefore your application will 
 + sap.hire.org.ORG_UNIT `50000590`
 + sap.hire.org.POSITION `50000046`
 + sap.hire.org.JOB `50052752`
-+ sap.hire.default.dob `01.01.1980`
++ sap.hire.default.dob `1980-01-01`
 
 ### SMTP Services configuration
 + smtp.host `smtp.gmail.com`
