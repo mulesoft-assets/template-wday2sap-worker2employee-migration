@@ -30,7 +30,7 @@
 					<inclusions>
 						<inclusion>
 							<groupId>org.mule.modules</groupId>
-							<artifactId>mule-module-sfdc</artifactId>
+							<artifactId>mule-module-workday-humanresources</artifactId>
 						</inclusion>
 						<inclusion>
 							<groupId>com.mulesoft.muleesb.transports</groupId>
