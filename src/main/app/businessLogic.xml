@@ -113,7 +113,7 @@ using (person = payload.workerData.personalData){
 	BirthPlace		: person.cityOfBirth,
 	DoB				: person.birthDate as :string {format: "YYYY-MM-dd"} default p('sap.hire.default.dob'),
 	Gender          : genderSAP(person.genderReference.ID[1].value).result when person.genderReference != null otherwise '',
-	Email			: person.contactData.emailAddressData[0].emailAddress,
+	Email			: person.contactData.emailAddressData[-1].emailAddress when person.contactData.emailAddressData != null otherwise null,
 	CoB             : person.countryOfBirthReference.ID[0].value when  person.countryOfBirthReference != null otherwise null,
 	Nationality     : person.nationalityReference.ID[0].value when person.nationalityReference != null otherwise null,
 	State           : person.regionOfBirthReference.ID[0].value when person.regionOfBirthReference != null otherwise null,
