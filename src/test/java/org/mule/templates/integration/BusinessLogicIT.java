@@ -172,7 +172,7 @@ public class BusinessLogicIT extends AbstractTemplateTestCase {
 	 * @throws Exception
 	 */
 	private void runMainFlow() throws Exception {
-		Thread.sleep(5000);
+		Thread.sleep(10000);
 		runFlow("mainFlow");
 		// Wait for the batch job executed by the flow to finish
 		helper.awaitJobTermination(TIMEOUT_SEC * 1000, DELAY_MILLIS);
