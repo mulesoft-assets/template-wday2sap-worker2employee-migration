@@ -132,7 +132,7 @@ In order to use this Mule Anypoint Template you need to configure properties (Cr
 #### Workday Connector configuration
 + wday.user `admin@workday`
 + wday.password `secret`
-+ wday.endpoint `https://impl-cc.workday.com/ccx/service/workday/Human_Resources/v21.1`
++ wday.endpoint `https://impl-cc.workday.com/ccx/service/workday/Human_Resources/v23.1`
 
 ### SAP Connector configuration
 
