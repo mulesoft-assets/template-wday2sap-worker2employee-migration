@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule version="EE-3.7.1"
+<mule version="3.7.2"
 	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
 	xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp"
 	xmlns:sap="http://www.mulesoft.org/schema/mule/sap" 
@@ -58,6 +58,32 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
             <wd-hr:get-workers config-ref="Workday_Human_Resource"  doc:name="getWorkers from Workday Human Resource"/>
             <set-payload value="#[payload.responseData == null ? [] : payload.responseData.worker]" doc:name="set to Worker collection"/>
             <custom-filter class="org.mule.templates.WorkersDeduplicationFilter" doc:name="Filter duplicate workers"/>
+            <dw:transform-message doc:name="POJOs to Maps">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%function genderSAP(gender) {
+	result : '0' when gender == 'Not_Declared' otherwise ( '2' when gender == 'Female' otherwise '1')
+}
+--- 
+payload map using (person = $.workerData.personalData){
+	FirstName       : person.NameData.legalNameData.nameDetailData.firstName,
+	MiddleName      : person.NameData.legalNameData.nameDetailData.middleName,
+	LastName        : person.NameData.legalNameData.nameDetailData.lastName,
+	Children 		: payload.workerData.relatedPersonData.numberOfPayrollDependents default null,
+	BirthPlace		: person.cityOfBirth,
+	DoB				: person.birthDate as :string {format: "YYYY-MM-dd"} default p('sap.hire.default.dob'),
+	Gender          : genderSAP(person.genderReference.ID[1].value).result when person.genderReference != null otherwise '',
+	Email			: person.contactData.emailAddressData[-1].emailAddress when person.contactData.emailAddressData != null otherwise null,
+	CoB             : person.countryOfBirthReference.ID[0].value when  person.countryOfBirthReference != null otherwise null,
+	Nationality     : person.nationalityReference.ID[0].value when person.nationalityReference != null otherwise null,
+	State           : person.regionOfBirthReference.ID[0].value when person.regionOfBirthReference != null otherwise null,
+	Ssn             : person.identificationData.nationalID[0].nationalIDData.ID when person.identificationData != null otherwise null
+}
+
+
+
+]]></dw:set-payload>
+            </dw:transform-message>
         </batch:input>
         <batch:process-records>
             <batch:step name="GetSAPEmployeeIfExists">
@@ -66,7 +92,7 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
                         <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_GETDATA" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="Query for Employee">
                             <sap:definition><![CDATA[<BAPI_EMPLOYEE_GETDATA>
   	<import>	
-		<USERID>#["*" + payload.getWorkerData().getPersonalData().getContactData().getEmailAddressData().get(0).getEmailAddress().toUpperCase() + "*"]</USERID> 		
+		<USERID>#["*" + payload.Email.toUpperCase() + "*"]</USERID> 		
 	</import>
 </BAPI_EMPLOYEE_GETDATA>]]></sap:definition>
 
@@ -97,34 +123,12 @@ payload.BAPI_EMPLOYEE_GETDATA.tables.PERSONAL_DATA.*row map {
             </batch:step>
 
 
-            <batch:step name="UpsertSAPEmployee">
-                <dw:transform-message doc:name="POJO to Map">
-                    <dw:set-payload><![CDATA[%dw 1.0
-%output application/java
-%function genderSAP(gender) {
-	result : '0' when gender == 'Not_Declared' otherwise ( '2' when gender == 'Female' otherwise '1')
-}
---- 
-using (person = payload.workerData.personalData){
-	FirstName       : person.NameData.legalNameData.nameDetailData.firstName,
-	MiddleName      : person.NameData.legalNameData.nameDetailData.middleName,
-	LastName        : person.NameData.legalNameData.nameDetailData.lastName,
-	Children 		: payload.workerData.relatedPersonData.numberOfPayrollDependents default null,
-	BirthPlace		: person.cityOfBirth,
-	DoB				: person.birthDate as :string {format: "YYYY-MM-dd"} default p('sap.hire.default.dob'),
-	Gender          : genderSAP(person.genderReference.ID[1].value).result when person.genderReference != null otherwise '',
-	Email			: person.contactData.emailAddressData[-1].emailAddress when person.contactData.emailAddressData != null otherwise null,
-	CoB             : person.countryOfBirthReference.ID[0].value when  person.countryOfBirthReference != null otherwise null,
-	Nationality     : person.nationalityReference.ID[0].value when person.nationalityReference != null otherwise null,
-	State           : person.regionOfBirthReference.ID[0].value when person.regionOfBirthReference != null otherwise null,
-	Ssn             : person.identificationData.nationalID[0].nationalIDData.ID when person.identificationData != null otherwise null
-}
+            <batch:step name="InsertSAPEmployee" accept-expression="recordVars.userInSAP == null">
 
-
-
-]]></dw:set-payload>
-                </dw:transform-message>
-                <flow-ref name="upsertSAPEmployeeSubflow" doc:name="call upsertSAPEmployeeSubflow"/>
+                <flow-ref name="insertSAPEmployeeSubflow" doc:name="call upsertSAPEmployeeSubflow"/>
+            </batch:step>
+            <batch:step name="UpdateSAPEmployee" accept-expression="recordVars.userInSAP != null">
+                <flow-ref name="updateSAPEmployeeSubflow" doc:name="call updateSAPEmployeeSubflow"/>
             </batch:step>
         </batch:process-records>
         <batch:on-complete>
@@ -140,31 +144,29 @@ using (person = payload.workerData.personalData){
             </scatter-gather>
         </batch:on-complete>
     </batch:job>
-    <sub-flow name="upsertSAPEmployeeSubflow">
-        <choice doc:name="Insert or Update?">
-            <when expression="#[recordVars.userInSAP == null]">
-                <logger message="inserting SAP employee...#[payload]" level="INFO" doc:name="Log insert"/>
-                <enricher source="#[payload.EmployeeNumber]" target="#[payload.EmployeeNumber]" doc:name="Enrich payload with EmployeeNumber">
-                    <processor-chain doc:name="Processor Chain">
-                        <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="ZMULE_NUMBER_GET_NEXT" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="get next Employee Number">
-                            <sap:definition><![CDATA[<ZMULE_NUMBER_GET_NEXT>
+    <sub-flow name="insertSAPEmployeeSubflow">
+        <logger message="inserting SAP employee...#[payload]" level="INFO" doc:name="Log insert"/>
+        <enricher source="#[payload.EmployeeNumber]" target="#[payload.EmployeeNumber]" doc:name="Enrich payload with EmployeeNumber">
+            <processor-chain doc:name="Processor Chain">
+                <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="ZMULE_NUMBER_GET_NEXT" xmlVersion="2" outputXml="true" responseTimeout="10000" doc:name="get next Employee Number">
+                    <sap:definition><![CDATA[<ZMULE_NUMBER_GET_NEXT>
   	<import>	
 		<NR_RANGE_NR>03</NR_RANGE_NR>
 		<OBJECT>RP_PREL</OBJECT>      
 	</import>
 </ZMULE_NUMBER_GET_NEXT>]]></sap:definition>
-                        </sap:outbound-endpoint>
-                        <dw:transform-message doc:name="Extract Employee Number">
-                            <dw:set-payload><![CDATA[%dw 1.0
+                </sap:outbound-endpoint>
+                <dw:transform-message doc:name="Extract Employee Number">
+                    <dw:set-payload><![CDATA[%dw 1.0
 %output application/java
 ---
 EmployeeNumber : payload.ZMULE_NUMBER_GET_NEXT.export.NUMBER]]></dw:set-payload>
-                        </dw:transform-message>
-                        <logger message="new employee number: #[payload]" level="INFO" doc:name="Log new employee number"/>
-                    </processor-chain>
-                </enricher>
-                <dw:transform-message doc:name="Map to XML">
-                    <dw:set-payload><![CDATA[%dw 1.0
+                </dw:transform-message>
+                <logger message="new employee number: #[payload]" level="INFO" doc:name="Log new employee number"/>
+            </processor-chain>
+        </enricher>
+        <dw:transform-message doc:name="Map to XML">
+            <dw:set-payload><![CDATA[%dw 1.0
 %output application/xml
 ---
 BAPI_HRMASTER_SAVE_REPL_MULT : {
@@ -333,23 +335,23 @@ BAPI_HRMASTER_SAVE_REPL_MULT : {
 		}
 	}
 }]]></dw:set-payload>
-                </dw:transform-message>
-                <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_HRMASTER_SAVE_REPL_MULT" xmlVersion="2" outputXml="true" evaluateFunctionResponse="true" bapiTransaction="true" responseTimeout="10000" doc:name="Create Employee"/>
-            </when>
-            <otherwise>
-                <logger message="updating SAP employee #[recordVars.userInSAP.id]...#[payload]" level="INFO" doc:name="Log update"/>
-                <batch:set-record-variable variableName="worker" value="#[payload]" doc:name="Store worker into record variable"/>
-                <transactional action="ALWAYS_BEGIN" doc:name="Transactional">
-                    <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_ENQUEUE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Lock Employee">
-                        <sap:transaction action="ALWAYS_JOIN"/>
-                        <sap:definition><![CDATA[<BAPI_EMPLOYEE_ENQUEUE>
+        </dw:transform-message>
+        <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_HRMASTER_SAVE_REPL_MULT" xmlVersion="2" outputXml="true" evaluateFunctionResponse="true" bapiTransaction="true" responseTimeout="10000" doc:name="Create Employee"/>
+    </sub-flow>
+    <sub-flow name="updateSAPEmployeeSubflow">
+        <logger message="updating SAP employee #[recordVars.userInSAP.id]...#[payload]" level="INFO" doc:name="Log update"/>
+        <batch:set-record-variable variableName="worker" value="#[payload]" doc:name="Store worker into record variable"/>
+        <transactional action="ALWAYS_BEGIN" doc:name="Transactional">
+            <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_ENQUEUE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Lock Employee">
+                <sap:transaction action="ALWAYS_JOIN"/>
+                <sap:definition><![CDATA[<BAPI_EMPLOYEE_ENQUEUE>
   <import>
     <NUMBER>#[recordVars.userInSAP.id]</NUMBER>
   </import>
 </BAPI_EMPLOYEE_ENQUEUE>]]></sap:definition>
-                    </sap:outbound-endpoint>
-                    <dw:transform-message doc:name="Map to XML">
-                        <dw:set-payload><![CDATA[%dw 1.0
+            </sap:outbound-endpoint>
+            <dw:transform-message doc:name="Map to XML">
+                <dw:set-payload><![CDATA[%dw 1.0
 %output application/xml
 ---
 BAPI_PERSDATA_CHANGE : {
@@ -365,26 +367,25 @@ BAPI_PERSDATA_CHANGE : {
 		OBJECTID        : "",
 		VALIDITYBEGIN   : recordVars.userInSAP.from,
 		VALIDITYEND     : recordVars.userInSAP.to,
-		DATEOFBIRTH     : recordVars.worker.DoB as :string { format : "YYYY-MM-dd" },
+		DATEOFBIRTH     : recordVars.worker.DoB,
 		GENDER          : recordVars.worker.Gender
 	}
 }]]></dw:set-payload>
-                    </dw:transform-message>
-                    <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_PERSDATA_CHANGE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Update Employee">
-                        <sap:transaction action="ALWAYS_JOIN"/>
-                    </sap:outbound-endpoint>
-                    <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_DEQUEUE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Unlock Employee">
-                        <sap:transaction action="ALWAYS_JOIN"/>
-                        <sap:definition><![CDATA[<BAPI_EMPLOYEE_DEQUEUE>
+            </dw:transform-message>
+            <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_PERSDATA_CHANGE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Update Employee">
+                <sap:transaction action="ALWAYS_JOIN"/>
+            </sap:outbound-endpoint>
+            <sap:outbound-endpoint exchange-pattern="request-response" connector-ref="SAP" type="function" functionName="BAPI_EMPLOYEE_DEQUEUE" xmlVersion="2" outputXml="true" bapiTransaction="true" responseTimeout="10000" doc:name="Unlock Employee">
+                <sap:transaction action="ALWAYS_JOIN"/>
+                <sap:definition><![CDATA[<BAPI_EMPLOYEE_DEQUEUE>
   <import>
     <NUMBER>#[recordVars.userInSAP.id]</NUMBER>
   </import>
 </BAPI_EMPLOYEE_DEQUEUE>]]></sap:definition>
-                    </sap:outbound-endpoint>
-                </transactional>
-            </otherwise>
-        </choice>
+            </sap:outbound-endpoint>
+        </transactional>
     </sub-flow>
+
     <flow name="mainFlow" processingStrategy="synchronous">
         <batch:execute name="migrateWorkersBatch" doc:name="execute migrateWorkersBatch"/>
         <exception-strategy ref="defaultChoiceExceptionStrategy" doc:name="Reference Exception Strategy"/>
