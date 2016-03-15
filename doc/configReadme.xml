@@ -34,6 +34,15 @@ These dependencies are private for Mulesoft and therefore your application will 
 
 ]]>
 		</section>
+		<section id="sap_dst">
+<![CDATA[
+This template uses custom BAPI functions. To create them please use following steps:
+
+1. Create function module `ZHCMFM_NUMBER_GET_NEXT` in transaction `SE37` as per source file `ZHCMFM_NUMBER_GET_NEXT.abap`
+
+Referenced files are in [src/main/resources] directory.
+]]>
+		</section>
 		<section id="application_configuration">
 <![CDATA[
 ### Common configuration
