@@ -58,7 +58,11 @@ There may be a few things that you need to know regarding SAP, in order for this
 
 ### As destination of data
 
-There are no particular considerations for this Anypoint Template regarding Sap as data destination.
+This template uses custom BAPI functions. To create them please use following steps:
+
+1. Create function module `ZHCMFM_NUMBER_GET_NEXT` in transaction `SE37` as per source file `ZHCMFM_NUMBER_GET_NEXT.abap`
+
+Referenced files are in [src/main/resources] directory.
 
 
 

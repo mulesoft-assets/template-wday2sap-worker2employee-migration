@@ -37,7 +37,7 @@ import com.mulesoft.module.batch.BatchTestHelper;
  */
 public class BusinessLogicIT extends AbstractTemplateTestCase {
 
-	private static final long TIMEOUT_SEC = 600;
+	private static final long TIMEOUT_SEC = 60;
 	private static final long DELAY_MILLIS = 500;
 	private static final String PATH_TO_TEST_PROPERTIES = "./src/test/resources/mule.test.properties";
 	private static final String TEST_USER_NAME_PREFIX = "test";
