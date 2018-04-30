@@ -373,8 +373,6 @@ BAPI_PERSDATA_CHANGE : {
 		SUBTYPE         : "",
 		LOCKINDICATOR   : "",
 		OBJECTID        : "",
-		VALIDITYBEGIN   : now() as String {format: "YYYYMMdd"},
-		VALIDITYEND     : now() as String {format: "YYYYMMdd"},
 		DATEOFBIRTH     : vars.worker.DoB[0 to 9] replace /-/ with "",
 		GENDER          : vars.worker.Gender
 	}
