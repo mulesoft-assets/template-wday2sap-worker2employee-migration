@@ -14,7 +14,7 @@ http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/
     <configuration-properties doc:name="Configuration properties" doc:id="74d4763d-652f-4e45-878b-4d195ec467a6" file="mule.test.properties" />
     <munit:before-test name="test-suiteBefore_Test" description="Before tests actions" doc:id="96b44c00-dda7-4620-aaed-8f6864ab52e6">
         <flow-ref doc:name="Call employeeInSAPSubFlow" doc:id="576a9856-3b57-4647-89c4-a8f6f84735d2" name="employeeInSAPSubFlow" />
-        <ee:transform doc:name="Save initial data" doc:id="4627fc9d-616c-4d04-b927-19bedc7b73ec">
+        <ee:transform doc:name="Prepare test data" doc:id="4627fc9d-616c-4d04-b927-19bedc7b73ec">
             <ee:message>
             </ee:message>
             <ee:variables>
@@ -22,17 +22,12 @@ http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/
 output application/java
 ---
 vars.employeeSAP]]></ee:set-variable>
-            </ee:variables>
-        </ee:transform>
-        <ee:transform doc:name="Prepare new data" doc:id="6129b010-6fa7-43e9-a632-f4a4aea2d1a3">
-            <ee:message>
-            </ee:message>
-            <ee:variables>
-                <ee:set-variable variableName="newData"><![CDATA[%dw 2.0
+				<ee:set-variable variableName="newData" ><![CDATA[%dw 2.0
 output application/java
 ---
 "Test " ++ randomInt(1000)]]></ee:set-variable>
-            </ee:variables>
+            
+</ee:variables>
         </ee:transform>
         <munit-tools:mock-when doc:name="Mock email processor to avoid sending email" doc:id="a40787c5-e73f-4c83-afa2-816e56639637"
             processor="email:send">
@@ -42,21 +37,13 @@ output application/java
     <munit:test name="test-suiteTest" description="MUnit Test" doc:id="056ab69b-2965-449a-b252-a3e743ce27d0">
         <munit:execution>
             <flow-ref doc:name="Call queryFlow" doc:id="14e82811-06f4-416c-9c99-322bdd796b2a" name="querySubFlow" />
-            <ee:transform doc:name="Filtering test records" doc:id="65acdc00-3f73-4fdb-a966-757c2728ec0a">
+            <ee:transform doc:name="Filter test records and modify payload" doc:id="7732f9fe-13f2-45d3-8d8f-de8e34f8f6c1">
                 <ee:message>
                     <ee:set-payload><![CDATA[%dw 2.0
 output application/java
+var filterWorker = (payload filter ($.Email == p('email.wday')))[0]
 ---
-payload filter ($.Email == p('email.wday'))]]>
-                    </ee:set-payload>
-                </ee:message>
-            </ee:transform>
-            <ee:transform doc:name="Modify payload" doc:id="7732f9fe-13f2-45d3-8d8f-de8e34f8f6c1">
-                <ee:message>
-                    <ee:set-payload><![CDATA[%dw 2.0
-output application/java
----
-[payload[0] - "FirstName" ++ {
+[filterWorker - "FirstName" ++ {
     "FirstName": vars.newData
 }]]]></ee:set-payload>
                 </ee:message>
@@ -64,7 +51,7 @@ output application/java
                     <ee:set-variable variableName="employeeInWorkday"><![CDATA[%dw 2.0
 output application/java
 ---
-payload[0]]]></ee:set-variable>
+(payload filter ($.Email == p('email.wday')))[0]]]></ee:set-variable>
                 </ee:variables>
             </ee:transform>
             <flow-ref doc:name="Call businessLogicFlow" doc:id="b4483e27-05be-4732-b309-8f5cde39cb42" name="businessLogicFlow" />
