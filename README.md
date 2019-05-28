@@ -1,8 +1,8 @@
 
-# Anypoint Template: Workday to SAP Worker to Employee Migration	
+# Anypoint Template: Workday to SAP Worker to Employee Migration
 
 <!-- Header (start) -->
-Moves a large set of workers from Workday to employees in SAP. You can trigger this manually or programmatically with an HTTP call. 
+Moves a large set of workers from Workday to employees in SAP. You can trigger this manually or programmatically with an HTTP call.
 
 Records are upserted so that the migration can be run multiple times without worrying about creating duplicates. This template uses batch to efficiently process many records at a time.
 
@@ -10,7 +10,7 @@ Records are upserted so that the migration can be run multiple times without wor
 <!-- Header (end) -->
 
 # License Agreement
-This template is subject to the conditions of the <a href="https://s3.amazonaws.com/templates-examples/AnypointTemplateLicense.pdf">MuleSoft License Agreement</a>. Review the terms of the license before downloading and using this template. You can use this template for free with the Mule Enterprise Edition, CloudHub, or as a trial in Anypoint Studio. 
+This template is subject to the conditions of the <a href="https://s3.amazonaws.com/templates-examples/AnypointTemplateLicense.pdf">MuleSoft License Agreement</a>. Review the terms of the license before downloading and using this template. You can use this template for free with the Mule Enterprise Edition, CloudHub, or as a trial in Anypoint Studio.
 # Use Case
 <!-- Use Case (start) -->
 As a Workday admin I want to migrate Workers from Workday to SAP as Employees.
@@ -98,7 +98,7 @@ After you import your template into Anypoint Studio, follow these steps to run i
 <!-- Running on Studio (end) -->
 
 ### Running on Mule Standalone
-Update the properties in one of the property files, for example in mule.prod.properties, and run your app with a corresponding environment variable. In this example, use `mule.env=prod`. 
+Update the properties in one of the property files, for example in mule.prod.properties, and run your app with a corresponding environment variable. In this example, use `mule.env=prod`.
 
 
 ## Running on CloudHub
@@ -130,6 +130,7 @@ To use this template, configure properties such as credentials, configurations, 
 - wday.tenant `org457`
 - wday.password `DylanPassword123`
 - wday.host `servise425546.workday.com`
+- wday.responseTimeout `25000`
 
 ### SAP Connector Configuration
 
