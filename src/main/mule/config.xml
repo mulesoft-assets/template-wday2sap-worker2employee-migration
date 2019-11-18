@@ -26,10 +26,10 @@
         <tls:trust-store insecure="true" />
     </tls:context>
 
-    <workday:config-version-30-config name="Workday_Config" doc:name="Workday Config version 30" doc:id="f06e94b4-c01e-470a-bf32-7f38d501d284">
-        <workday:basic-authentication-api-v30-connection username="${wday.username}" password="${wday.password}"
-            tenantName="${wday.tenant}" hostName="${wday.host}" responseTimeout="${wday.responseTimeout}" />
-    </workday:config-version-30-config>
+    <workday:config-version-32-config name="Workday_Config" doc:name="Workday Config version 32" doc:id="f06e94b4-c01e-470a-bf32-7f38d501d284">
+        <workday:basic-authentication-api-v32-connection userName="${wday.username}" password="${wday.password}"
+            tenantName="${wday.tenant}" hostName="${wday.host}"/>
+    </workday:config-version-32-config>
 
     <sap:outbound-config name="SAP_Outbound" doc:id="47728d00-9fea-4755-824a-9d1c57ecc24f" doc:name="SAP Outbound">
         <sap:simple-connection-provider-connection applicationServerHost="${sap.jco.ashost}" client="${sap.jco.client}"

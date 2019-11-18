@@ -130,7 +130,6 @@ To use this template, configure properties such as credentials, configurations, 
 - wday.tenant `org457`
 - wday.password `DylanPassword123`
 - wday.host `servise425546.workday.com`
-- wday.responseTimeout `25000`
 
 ### SAP Connector Configuration
 
