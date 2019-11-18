@@ -1,23 +1,20 @@
 
-# Anypoint Template: Workday to SAP Worker to Employee Migration
+# Anypoint Template: Workday to SAP Worker to Employee Migration	
 
 <!-- Header (start) -->
-Moves a large set of workers from Workday to employees in SAP. You can trigger this manually or programmatically with an HTTP call.
 
-Records are upserted so that the migration can be run multiple times without worrying about creating duplicates. This template uses batch to efficiently process many records at a time.
-
-![94d510f0-666b-49d4-848e-9daaaa571b3b-image.png](https://exchange2-file-upload-service-kprod.s3.us-east-1.amazonaws.com:443/94d510f0-666b-49d4-848e-9daaaa571b3b-image.png)
 <!-- Header (end) -->
 
 # License Agreement
-This template is subject to the conditions of the <a href="https://s3.amazonaws.com/templates-examples/AnypointTemplateLicense.pdf">MuleSoft License Agreement</a>. Review the terms of the license before downloading and using this template. You can use this template for free with the Mule Enterprise Edition, CloudHub, or as a trial in Anypoint Studio.
+This template is subject to the conditions of the <a href="https://s3.amazonaws.com/templates-examples/AnypointTemplateLicense.pdf">MuleSoft License Agreement</a>. Review the terms of the license before downloading and using this template. You can use this template for free with the Mule Enterprise Edition, CloudHub, or as a trial in Anypoint Studio. 
 # Use Case
 <!-- Use Case (start) -->
 As a Workday admin I want to migrate Workers from Workday to SAP as Employees.
 
-This template leverages the Mule batch module. The batch job is divided into *Process* and *On Complete* stages.
+This template leverages the Mule batch module.
+The batch job is divided into *Process* and *On Complete* stages.
 
-1. The integration is triggered by an HTTP request. The template in the batch input stage queries Workday for active workers that were created or modified within the configured time frame.
+1. The integration is triggered by an HTTP request. template in batch Input stage queries Workday for active workers created or modified within the configured time frame.
 2. In the batch Process stage the matching employee data (if it exists) is fetched from SAP (based on the e-mail) and mapped to the SAP input data structure.
 3. Afterwards, each employee data is sent to the destination instance, SAP, where the existing employee is updated or new one is created.
 4. Finally, within the *On Complete* stage, the template will provide batch statistics to both the pre-configured e-mail recipient and to the console.
@@ -29,14 +26,20 @@ This template leverages the Mule batch module. The batch job is divided into *Pr
 <!-- Default Considerations (end) -->
 
 <!-- Considerations (start) -->
-There are certain prerequisites that must be considered to run this template. All of them deal with the preparations in both source and destination systems, that must be made for the template to run smoothly. Failing to do so can lead to unexpected behavior of the template.
-
-Workday email uniqueness: The email can be repeated for two or more workers (or missing). Therefore Workday workers with duplicate emails are removed from processing in the Process stage.
+There are certain pre-requisites that must be considered to run this template. All of them deal with the preparations in both source and destination systems, that must be made for the template to run smoothly. 
+**Failing to do so could lead to unexpected behavior of the template.**
+There are a couple of things you should take into account before running this template:
+**Workday email uniqueness**: The email can be repeated for two or more workers (or missing). Therefore Workday workers with duplicate emails will be removed from processing in the Process stage.
 
 ## Disclaimer
-This template uses a few private Maven dependencies from MuleSoft to work. If you intend to run this template with Maven support, you need to add three extra dependencies for SAP to the pom.xml. See [SAP XML and Maven Support](https://docs.mulesoft.com/connectors/sap/sap-connector#xml-and-maven-support).
+This Anypoint template uses a few private Maven dependencies from Mulesoft in order to work. If you intend to run this template with Maven support, you need to add three extra dependencies for SAP to the pom.xml.
 <!-- Considerations (end) -->
 
+## Workday Considerations
+
+### As a Data Source
+
+There are no considerations with using Workday as a data origin.
 
 ## SAP Considerations
 
@@ -45,14 +48,11 @@ Here's what you need to know to get this template to work with SAP.
 
 ### As a Data Destination
 
-This template uses custom BAPI functions, which you can create with the function module `ZHCMFM_NUMBER_GET_NEXT` in transaction `SE37` as per source file `ZHCMFM_NUMBER_GET_NEXT.abap`. These files are in src/main/resources in the source directory.
+This template uses custom BAPI functions. To create them please use following steps:
 
-## Workday Considerations
+1. Create function module `ZHCMFM_NUMBER_GET_NEXT` in transaction `SE37` as per source file `ZHCMFM_NUMBER_GET_NEXT.abap`
 
-### As a Data Source
-
-There are no considerations with using Workday as a data origin.
-
+Referenced files are in [src/main/resources] directory.
 # Run it!
 Simple steps to get this template running.
 <!-- Run it (start) -->
@@ -85,20 +85,19 @@ In Studio, click the Exchange X icon in the upper left of the taskbar, log in wi
 ### Running on Studio
 After you import your template into Anypoint Studio, follow these steps to run it:
 
-1. Locate the properties file `mule.dev.properties`, in src/main/resources.
-2. Complete all the properties required per the examples in the "Properties to Configure" section.
-3. Right click the template project folder.
-4. Hover your mouse over `Run as`.
-5. Click `Mule Application (configure)`.
-6. Inside the dialog, select Environment and set the variable `mule.env` to the value `dev`.
-7. Click `Run`.
-
++ Locate the properties file `mule.dev.properties`, in src/main/resources.
++ Complete all the properties required as per the examples in the "Properties to Configure" section.
++ Right click the template project folder.
++ Hover your mouse over `Run as`.
++ Click `Mule Application (configure)`.
++ Inside the dialog, select Environment and set the variable `mule.env` to the value `dev`.
++ Click `Run`.
 <!-- Running on Studio (start) -->
 
 <!-- Running on Studio (end) -->
 
 ### Running on Mule Standalone
-Update the properties in one of the property files, for example in mule.prod.properties, and run your app with a corresponding environment variable. In this example, use `mule.env=prod`.
+Update the properties in one of the property files, for example in mule.prod.properties, and run your app with a corresponding environment variable. In this example, use `mule.env=prod`. 
 
 
 ## Running on CloudHub
@@ -117,58 +116,54 @@ In Studio, right click your project name in Package Explorer and select Anypoint
 To use this template, configure properties such as credentials, configurations, etc.) in the properties file or in CloudHub from Runtime Manager > Manage Application > Properties. The sections that follow list example values.
 ### Application Configuration
 <!-- Application Configuration (start) -->
-### Application Configuration
+### Application configuration
 
-- http.port `9090`
-- page.size `100`
-- migration.startDate `2019-09-18T12:00:00.000Z`
++ http.port `9090`
++ page.size `100`
++ migration.startDate `2015-09-18T12:00:00.000Z`
 
 
-#### Workday Connector Configuration
+#### Workday Connector configuration
++ wday.username `bob.dylan@orga`
++ wday.tenant `org457`
++ wday.password `DylanPassword123`
++ wday.host `servise425546.workday.com`
 
-- wday.username `bob.dylan@orga`
-- wday.tenant `org457`
-- wday.password `DylanPassword123`
-- wday.host `servise425546.workday.com`
+### SAP Connector configuration
++ sap.jco.ashost `your.sap.address.com`
++ sap.jco.user `SAP_USER`
++ sap.jco.passwd `SAP_PASS`
++ sap.jco.sysnr `14`
++ sap.jco.client `800`
++ sap.jco.lang `EN`
 
-### SAP Connector Configuration
+### SAP HR configuration
 
-- sap.jco.ashost `your.sap.address.com`
-- sap.jco.user `SAP_USER`
-- sap.jco.passwd `SAP_PASS`
-- sap.jco.sysnr `14`
-- sap.jco.client `800`
-- sap.jco.lang `EN`
++ sap.hire.org.COMP_CODE `3000`
++ sap.hire.org.PERS_AREA `300`
++ sap.hire.org.EMPLOYEE_GROUP `1`
++ sap.hire.org.EMPLOYEE_SUBGROUP `U5`
++ sap.hire.org.PERSONNEL_SUBAREA `0001`
++ sap.hire.org.LEGAL_PERSON `0001`
++ sap.hire.org.PAYROLL_AREA `PR`
++ sap.hire.org.COSTCENTER `4130`
++ sap.hire.org.ORG_UNIT `50000590`
++ sap.hire.org.POSITION `50000046`
++ sap.hire.org.JOB `50052752`
++ sap.hire.personal.PERSIDNO `50052755`
++ sap.hire.hr_infotype.TO_DATE `50052757`
++ sap.hire.default.dob `1980-01-01`
 
-### SAP HR Configuration
+#### SMTP Services configuration
++ smtp.host `smtp.gmail.com`
++ smtp.port `587`
++ smtp.user `exampleuser@gmail.com`
++ smtp.password `ExamplePassword456`
 
-- sap.hire.org.COMP_CODE `3000`
-- sap.hire.org.PERS_AREA `300`
-- sap.hire.org.EMPLOYEE_GROUP `1`
-- sap.hire.org.EMPLOYEE_SUBGROUP `U5`
-- sap.hire.org.PERSONNEL_SUBAREA `0001`
-- sap.hire.org.LEGAL_PERSON `0001`
-- sap.hire.org.PAYROLL_AREA `PR`
-- sap.hire.org.COSTCENTER `4130`
-- sap.hire.org.ORG_UNIT `50000590`
-- sap.hire.org.POSITION `50000046`
-- sap.hire.org.JOB `50052752`
-- sap.hire.personal.PERSIDNO `50052755`
-- sap.hire.hr_infotype.TO_DATE `50052757`
-- sap.hire.default.dob `1980-01-01`
-
-#### SMTP Services Configuration
-
-- smtp.host `smtp.gmail.com`
-- smtp.port `587`
-- smtp.user `exampleuser@gmail.com`
-- smtp.password `ExamplePassword456`
-
-### Email Details
-
-- mail.from `batch.migrateworkers.migration%40mulesoft.com`
-- mail.to `your.addres@yourcompany.org`
-- mail.subject `Batch Job report`
+### Mail details
++ mail.from `batch.migrateworkers.migration%40mulesoft.com`
++ mail.to `your.addres@yourcompany.org`
++ mail.subject `Batch Job report`
 <!-- Application Configuration (end) -->
 
 # API Calls
@@ -182,15 +177,13 @@ This brief guide provides a high level understanding of how this template is bui
 * config.xml
 * businessLogic.xml
 * endpoints.xml
-* errorHandling.xml
-<!-- Customize it (start) -->
+* errorHandling.xml<!-- Customize it (start) -->
 
 <!-- Customize it (end) -->
 
 ## config.xml
 <!-- Default Config XML (start) -->
-This file provides the configuration for connectors and configuration properties. Only change this file to make core changes to the connector processing logic. Otherwise, all parameters that can be modified should instead be in a properties file, which is the recommended place to make changes.
-<!-- Default Config XML (end) -->
+This file provides the configuration for connectors and configuration properties. Only change this file to make core changes to the connector processing logic. Otherwise, all parameters that can be modified should instead be in a properties file, which is the recommended place to make changes.<!-- Default Config XML (end) -->
 
 <!-- Config XML (start) -->
 
@@ -198,8 +191,7 @@ This file provides the configuration for connectors and configuration properties
 
 ## businessLogic.xml
 <!-- Default Business Logic XML (start) -->
-This file holds the functional aspects of the template (points 2. to 4. described in the template overview). Its main component is a batch job, and it includes *steps* for executing the broadcast operation from Workday to SAP.
-<!-- Default Business Logic XML (end) -->
+This file holds the functional aspect of the template (points 2. to 4. described in the template overview). Its main component is a Batch job, and it includes *steps* for executing the broadcast operation from Workday to SAP.<!-- Default Business Logic XML (end) -->
 
 <!-- Business Logic XML (start) -->
 
@@ -208,8 +200,7 @@ This file holds the functional aspects of the template (points 2. to 4. describe
 ## endpoints.xml
 <!-- Default Endpoints XML (start) -->
 This file should contain every inbound endpoint of your integration app. It is intended to contain the application API.
-In this particular template, this file contains a HTTP connector that listens for HTTP request to specified URL to trigger the batch processing.
-<!-- Default Endpoints XML (end) -->
+In this particular template, this file contains a HTTP connector that listens for HTTP request to specified URL to trigger the batch processing.<!-- Default Endpoints XML (end) -->
 
 <!-- Endpoints XML (start) -->
 
